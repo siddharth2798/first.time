@@ -1,16 +1,17 @@
 
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Post, User, Comment } from '../types';
+import { useAuth0 } from '@auth0/auth0-react';
+import { Post, Comment } from '../types';
 
 interface PostDetailProps {
   posts: Post[];
   onAddComment: (postId: string, comment: Comment) => void;
-  currentUser: User | null;
 }
 
-const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUser }) => {
+const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
   const { id } = useParams<{ id: string }>();
+  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const post = posts.find(p => p.id === id);
   const [newCommentText, setNewCommentText] = useState('');
 
@@ -25,12 +26,12 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUse
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim()) return;
+    if (!newCommentText.trim() || !isAuthenticated) return;
 
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
-      author: currentUser?.username || 'Guest Wanderer',
-      authorId: currentUser?.id,
+      author: user?.nickname || user?.name || 'Explorer',
+      authorId: user?.sub,
       text: newCommentText,
       createdAt: new Date().toISOString()
     };
@@ -87,7 +88,6 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUse
             ))}
           </div>
 
-          {/* Tips Section */}
           <div className="bg-blue-600 border-4 border-black p-10 rounded-3xl relative overflow-hidden mb-20 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="text-3xl font-black mb-10 text-white flex items-center uppercase italic tracking-tighter">
               The Survivor's Toolkit
@@ -102,7 +102,6 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUse
             </ol>
           </div>
 
-          {/* Comments Section */}
           <section className="mt-32">
             <h3 className="text-3xl font-black mb-12 flex items-center gap-4 uppercase italic">
               Peer Review ({post.comments.length})
@@ -134,15 +133,19 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUse
               <textarea 
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
-                placeholder={currentUser ? "Share some wisdom or ask a question..." : "Login to leave a comment..."}
-                disabled={!currentUser}
+                placeholder={isAuthenticated ? "Share some wisdom or ask a question..." : "Login to leave a comment..."}
+                disabled={!isAuthenticated}
                 className="w-full p-4 border-2 border-black mb-4 focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white min-h-[120px]"
               />
               <div className="flex justify-between items-center">
-                {!currentUser && <p className="text-xs font-bold text-gray-400">You must be <Link to="/auth" className="text-blue-600 underline">logged in</Link> to comment.</p>}
+                {!isAuthenticated && (
+                    <p className="text-xs font-bold text-gray-400">
+                        You must be <button type="button" onClick={() => loginWithRedirect()} className="text-blue-600 underline">logged in</button> to comment.
+                    </p>
+                )}
                 <button 
                   type="submit"
-                  disabled={!currentUser || !newCommentText.trim()}
+                  disabled={!isAuthenticated || !newCommentText.trim()}
                   className="bg-black text-white px-8 py-3 font-black uppercase text-xs tracking-widest hover:bg-blue-600 disabled:bg-gray-300 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 >
                   Send Advice
@@ -193,14 +196,6 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, currentUse
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="bg-yellow-100 p-8 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] -rotate-1">
-            <h4 className="text-xl font-black mb-4 uppercase italic">Support the Author</h4>
-            <p className="text-sm font-bold mb-6 text-gray-700">Writing about your failures is brave. Give {post.author} a virtual high-five!</p>
-            <button className="w-full bg-white border-2 border-black py-4 font-black text-xs uppercase hover:bg-black hover:text-white transition-all">
-              Send a High-Five 🖐️
-            </button>
           </div>
         </aside>
       </div>

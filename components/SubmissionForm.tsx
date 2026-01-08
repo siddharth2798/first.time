@@ -1,15 +1,20 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Category, Post, RealityCheck, User } from '../types';
+import { useAuth0 } from '@auth0/auth0-react';
+import { Category, Post, RealityCheck } from '../types';
 import { CATEGORIES } from '../constants';
+
+// For production, use environment variables and unsigned upload presets
+const CLOUDINARY_CLOUD_NAME = "your-cloud-name";
+const CLOUDINARY_UPLOAD_PRESET = "your-unsigned-preset";
 
 interface SubmissionFormProps {
   onAddPost: (post: Post) => void;
-  currentUser: User | null;
 }
 
-const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser }) => {
+const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
+  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -19,7 +24,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser 
     content: '',
     tips: ['', '', ''],
     realityChecks: [{ expectation: '', reality: '' }] as RealityCheck[],
-    imagePreview: ''
+    imageUrl: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -46,33 +51,73 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser 
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, imagePreview: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const openCloudinaryWidget = useCallback(() => {
+    // @ts-ignore - Cloudinary is globally loaded in index.html
+    const myWidget = window.cloudinary.createUploadWidget(
+      {
+        cloudName: CLOUDINARY_CLOUD_NAME,
+        uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+        sources: ['local', 'url', 'camera'],
+        showAdvancedOptions: false,
+        cropping: true,
+        multiple: false,
+        defaultSource: 'local',
+        styles: {
+            palette: {
+                window: "#FFFFFF",
+                windowBorder: "#000000",
+                tabIcon: "#000000",
+                menuIcons: "#000000",
+                textDark: "#000000",
+                textLight: "#FFFFFF",
+                link: "#2563EB",
+                action: "#000000",
+                activeTab: "#2563EB",
+                inactiveTabIcon: "#000000",
+                error: "#F43F5E",
+                inProgress: "#2563EB",
+                complete: "#10B981",
+                sourceBg: "#F9FAFB"
+            },
+            fonts: {
+                default: null,
+                "'Inter', sans-serif": {
+                    url: "https://fonts.googleapis.com/css?family=Inter",
+                    active: true
+                }
+            }
+        }
+      },
+      (error: any, result: any) => {
+        if (!error && result && result.event === "success") {
+          setFormData(prev => ({ ...prev, imageUrl: result.info.secure_url }));
+        }
+      }
+    );
+    myWidget.open();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      loginWithRedirect();
+      return;
+    }
     setLoading(true);
 
+    // Simulated API call that would hit MongoDB via an Express endpoint
     setTimeout(() => {
       const newPost: Post = {
         id: Math.random().toString(36).substr(2, 9),
         title: formData.title,
-        author: currentUser?.username || 'Guest Traveler',
-        authorId: currentUser?.id,
+        author: user?.nickname || user?.name || 'Explorer',
+        authorId: user?.sub,
         category: formData.category,
         difficulty: formData.difficulty,
         content: formData.content,
         tips: formData.tips.filter(t => t.trim() !== ''),
         realityChecks: formData.realityChecks.filter(r => r.expectation.trim() !== ''),
-        imageUrl: formData.imagePreview || `https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=800`,
+        imageUrl: formData.imageUrl || `https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=800`,
         createdAt: new Date().toISOString(),
         comments: []
       };
@@ -85,48 +130,50 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser 
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-20">
-      <div className="mb-16 text-center">
-        <h1 className="text-6xl font-black mb-6 tracking-tighter uppercase italic">Document Your First</h1>
-        <p className="text-gray-400 font-bold doodle-font text-2xl italic underline decoration-blue-200">The world needs your beginners' eyes.</p>
+      <div className="mb-20 text-center">
+        <h1 className="text-7xl font-black mb-8 tracking-tighter uppercase italic">LOG YOUR FIRST</h1>
+        <p className="text-black font-black doodle-font text-3xl italic underline decoration-blue-600 underline-offset-8">Capture the moment you started from zero.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-16 bg-white p-10 md:p-20 scrapbook-border shadow-2xl">
-        <section className="space-y-10">
+      <form onSubmit={handleSubmit} className="space-y-20 bg-white p-10 md:p-24 scrapbook-border shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-4 bg-blue-600"></div>
+        
+        <section className="space-y-12">
           <div className="flex items-center gap-4">
-             <h2 className="text-3xl font-black uppercase italic tracking-tighter">The Brief</h2>
-             <div className="h-[2px] flex-1 bg-black/10"></div>
+             <h2 className="text-4xl font-black uppercase italic tracking-tighter">The Brief</h2>
+             <div className="h-[4px] flex-1 bg-black"></div>
           </div>
-          <div className="grid grid-cols-1 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Heading</label>
+          <div className="grid grid-cols-1 gap-10">
+            <div className="space-y-3">
+              <label className="text-xs font-black uppercase tracking-widest text-black">Project Title</label>
               <input 
                 required
                 type="text" 
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
-                placeholder="Changing my first flat tire..." 
-                className="w-full p-5 border-4 border-black text-xl focus:outline-none focus:ring-8 focus:ring-blue-50 font-bold"
+                placeholder="Filing my taxes for the first time..." 
+                className="w-full p-6 border-4 border-black text-2xl focus:outline-none focus:bg-blue-50 font-black placeholder:text-gray-200"
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Classify It</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-black">Genre</label>
                 <select 
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
-                  className="w-full p-4 border-4 border-black font-black uppercase text-xs tracking-widest bg-white"
+                  className="w-full p-5 border-4 border-black font-black uppercase text-sm tracking-widest bg-white"
                 >
                   {CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Difficulty Score ({formData.difficulty})</label>
-                <div className="flex items-center gap-4 py-4">
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-black">Mental Load ({formData.difficulty}/5)</label>
+                <div className="flex items-center gap-6 py-4">
                   <input 
                     type="range" 
                     name="difficulty"
@@ -134,96 +181,112 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser 
                     max="5" 
                     value={formData.difficulty}
                     onChange={handleInputChange}
-                    className="flex-1 accent-blue-600 h-2"
+                    className="flex-1 accent-black h-3 cursor-pointer"
                   />
-                  <span className="font-black text-2xl doodle-font text-blue-600">Level {formData.difficulty}</span>
+                  <span className="font-black text-4xl doodle-font text-blue-600">Lvl {formData.difficulty}</span>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="space-y-10">
+        <section className="space-y-12">
           <div className="flex items-center gap-4">
-             <h2 className="text-3xl font-black uppercase italic tracking-tighter">The Full Story</h2>
-             <div className="h-[2px] flex-1 bg-black/10"></div>
+             <h2 className="text-4xl font-black uppercase italic tracking-tighter">The Full Experience</h2>
+             <div className="h-[4px] flex-1 bg-black"></div>
           </div>
           <textarea 
             required
             name="content"
             value={formData.content}
             onChange={handleInputChange}
-            rows={10}
-            placeholder="Don't leave out the embarrassing parts..." 
-            className="w-full p-8 border-4 border-black focus:outline-none focus:ring-8 focus:ring-blue-50 font-medium text-lg bg-gray-50/30"
+            rows={12}
+            placeholder="Tell us the story. What broke? What worked? How did you feel?" 
+            className="w-full p-10 border-4 border-black focus:outline-none focus:bg-yellow-50 font-medium text-xl bg-gray-50/50 placeholder:text-gray-300"
           />
 
-          <div className="space-y-4">
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Evidence (Photo)</label>
-            <div className="flex flex-col md:flex-row gap-10 items-center bg-gray-50 p-10 scrapbook-border border-dashed">
-              <label className="cursor-pointer group flex flex-col items-center">
-                <div className="w-20 h-20 bg-black text-white rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors mb-4">
-                  <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                  </svg>
+          <div className="space-y-6">
+            <label className="text-xs font-black uppercase tracking-widest text-black">Visual Proof</label>
+            <div className="flex flex-col md:flex-row gap-12 items-center bg-gray-50 p-12 scrapbook-border border-dashed border-4">
+              {formData.imageUrl ? (
+                <div className="relative scrapbook-border p-3 bg-white rotate-2 max-w-[320px] group">
+                   <img src={formData.imageUrl} alt="Uploaded" className="w-full h-auto" />
+                   <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                    className="absolute -top-4 -right-4 bg-red-600 text-white w-10 h-10 rounded-full border-4 border-black font-black flex items-center justify-center hover:scale-110 transition-transform"
+                   >
+                    X
+                   </button>
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Attach Image</span>
-                <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-              </label>
-              {formData.imagePreview && (
-                <div className="relative scrapbook-border p-2 bg-white rotate-2 max-w-[240px]">
-                   <img src={formData.imagePreview} alt="Preview" className="w-full h-auto" />
-                </div>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={openCloudinaryWidget}
+                  className="group flex flex-col items-center justify-center p-12 bg-white border-4 border-black border-dashed hover:bg-blue-50 transition-all w-full md:w-auto min-w-[200px]"
+                >
+                  <div className="w-20 h-20 bg-black text-white rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors mb-6 shadow-xl">
+                    <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-black uppercase tracking-widest">UPLOAD VIA CLOUDINARY</span>
+                </button>
+              )}
+              {!formData.imageUrl && (
+                <p className="text-black font-bold doodle-font text-2xl italic opacity-40">Images hosted securely on Cloudinary.</p>
               )}
             </div>
           </div>
         </section>
 
-        <section className="space-y-10">
+        <section className="space-y-12">
           <div className="flex items-center gap-4">
-             <h2 className="text-3xl font-black uppercase italic tracking-tighter">Survivor's Tips</h2>
-             <div className="h-[2px] flex-1 bg-black/10"></div>
+             <h2 className="text-4xl font-black uppercase italic tracking-tighter">Survivor's Code</h2>
+             <div className="h-[4px] flex-1 bg-black"></div>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-8">
             {formData.tips.map((tip, i) => (
-              <div key={i} className="flex gap-6 items-center">
-                <span className="text-5xl font-black text-blue-600 doodle-font italic">0{i+1}</span>
+              <div key={i} className="flex gap-8 items-center">
+                <span className="text-6xl font-black text-blue-600 doodle-font italic">0{i+1}</span>
                 <input 
                   type="text" 
                   value={tip}
                   onChange={(e) => handleTipChange(i, e.target.value)}
-                  placeholder="Pro tip..."
-                  className="w-full p-4 border-2 border-black bg-blue-50 focus:outline-none font-bold"
+                  placeholder="Essential lesson..."
+                  className="w-full p-5 border-4 border-black bg-blue-50 focus:outline-none font-black text-lg"
                 />
               </div>
             ))}
           </div>
         </section>
 
-        <section className="space-y-10">
+        <section className="space-y-12">
           <div className="flex justify-between items-center">
-             <h2 className="text-3xl font-black uppercase italic tracking-tighter">Reality Check</h2>
-             <button type="button" onClick={addRealityCheck} className="text-[10px] font-black bg-black text-white px-4 py-2 uppercase tracking-widest">+ Add Comparison</button>
+             <h2 className="text-4xl font-black uppercase italic tracking-tighter">The Reality Gap</h2>
+             <button type="button" onClick={addRealityCheck} className="text-xs font-black bg-black text-white px-6 py-3 uppercase tracking-widest shadow-lg hover:bg-blue-600 transition-colors">+ New Check</button>
           </div>
-          <div className="space-y-10">
+          <div className="space-y-12">
             {formData.realityChecks.map((check, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-orange-50 p-8 scrapbook-border border-orange-200">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-orange-400 uppercase tracking-widest">I thought...</label>
+              <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-orange-50 p-10 scrapbook-border border-black border-4">
+                <div className="space-y-4">
+                  <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest">Idealized Expectation</label>
                   <input 
                     type="text" 
                     value={check.expectation}
                     onChange={(e) => handleRealityCheckChange(i, 'expectation', e.target.value)}
-                    className="w-full p-3 border-b-2 border-orange-200 bg-transparent focus:outline-none focus:border-orange-500 italic font-medium"
+                    placeholder="What the manual said..."
+                    className="w-full p-4 border-b-4 border-orange-200 bg-transparent focus:outline-none focus:border-orange-500 italic font-black text-xl placeholder:text-orange-200"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest">In reality...</label>
+                <div className="space-y-4">
+                  <label className="text-[12px] font-black text-black uppercase tracking-widest">Cold Hard Reality</label>
                   <input 
                     type="text" 
                     value={check.reality}
                     onChange={(e) => handleRealityCheckChange(i, 'reality', e.target.value)}
-                    className="w-full p-3 border-b-2 border-orange-900 bg-transparent focus:outline-none focus:border-black font-black"
+                    placeholder="What actually happened..."
+                    className="w-full p-4 border-b-4 border-black bg-transparent focus:outline-none focus:border-blue-600 font-black text-xl placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -231,15 +294,15 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, currentUser 
           </div>
         </section>
 
-        <div className="pt-16 border-t-4 border-black">
+        <div className="pt-20 border-t-8 border-black">
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full py-6 text-2xl font-black text-white bg-black hover:bg-blue-600 transition-all shadow-[10px_10px_0px_0px_rgba(37,99,235,1)] active:shadow-none active:translate-x-2 active:translate-y-2 uppercase tracking-tighter italic"
+            className="w-full py-8 text-3xl font-black text-white bg-black hover:bg-blue-600 transition-all shadow-[12px_12px_0px_0px_#2563eb] active:shadow-none active:translate-x-3 active:translate-y-3 uppercase tracking-tighter italic"
           >
-            {loading ? 'Publishing Report...' : 'Log the First Time'}
+            {loading ? 'STORING IN MONGODB...' : 'PERMANENTLY LOG THIS FIRST'}
           </button>
-          <p className="text-center mt-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Your story will be live instantly.</p>
+          <p className="text-center mt-8 text-xs font-black uppercase tracking-widest text-black opacity-40">Your account is secured with Auth0.</p>
         </div>
       </form>
     </div>
