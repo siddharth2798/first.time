@@ -1,0 +1,7 @@
+{
+  "name": "first.time",
+  "description": "A collaborative storytelling platform where people share their 'first-time' experiences—from DIY home repairs to solo international travels—to help others start from zero.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
