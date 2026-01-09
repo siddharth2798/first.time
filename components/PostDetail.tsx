@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Post, Comment } from '../types';
+import { Post, Comment } from '../types.ts';
 
 interface PostDetailProps {
   posts: Post[];

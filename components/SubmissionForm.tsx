@@ -1,9 +1,9 @@
 
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Category, Post, RealityCheck } from '../types';
-import { CATEGORIES } from '../constants';
-import { CONFIG } from '../config';
+import { Category, Post, RealityCheck } from '../types.ts';
+import { CATEGORIES } from '../constants.ts';
+import { CONFIG } from '../config.ts';
 
 interface SubmissionFormProps {
   onAddPost: (post: Post) => void;

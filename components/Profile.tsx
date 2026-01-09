@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Post } from '../types';
-import PostCard from './PostCard';
+import { Post } from '../types.ts';
+import PostCard from './PostCard.tsx';
 
 interface ProfileProps {
   posts: Post[];

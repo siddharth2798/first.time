@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
-import { Post, Category } from './types';
-import { MOCK_POSTS, CATEGORIES } from './constants';
-import PostCard from './components/PostCard';
-import PostDetail from './components/PostDetail';
-import SubmissionForm from './components/SubmissionForm';
-import Profile from './components/Profile';
+import { Post, Category } from './types.ts';
+import { MOCK_POSTS, CATEGORIES } from './constants.ts';
+import PostCard from './components/PostCard.tsx';
+import PostDetail from './components/PostDetail.tsx';
+import SubmissionForm from './components/SubmissionForm.tsx';
+import Profile from './components/Profile.tsx';
 
 const Header: React.FC = () => {
   return (
