@@ -4,12 +4,21 @@
   "version": "1.0.0",
   "description": "A collaborative storytelling platform for first-time experiences.",
   "main": "index.html",
+  "type": "module",
   "scripts": {
-    "start": "serve -s .",
-    "build": "echo 'No build step required for ESM-native app'"
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "serve": "^14.2.4"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
