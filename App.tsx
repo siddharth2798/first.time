@@ -5,6 +5,7 @@ import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category, Comment } from './types.ts';
 import { CATEGORIES, MOCK_POSTS } from './constants.ts';
 import { CONFIG } from './config.ts';
+import { supabase } from './supabase.ts';
 import PostCard from './components/PostCard.tsx';
 import PostDetail from './components/PostDetail.tsx';
 import SubmissionForm from './components/SubmissionForm.tsx';
@@ -103,83 +104,190 @@ const Header: React.FC<{ isSaving?: boolean }> = ({ isSaving }) => {
 
 const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsSaving }) => {
   const { user, isAuthenticated } = useAuth0();
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem('ft_posts');
-    return saved ? JSON.parse(saved) : MOCK_POSTS;
-  });
-
-  const [customUsername, setCustomUsername] = useState<string>(() => {
-    return localStorage.getItem('ft_username') || '';
-  });
-  
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [customUsername, setCustomUsername] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Sync posts to local storage
+  // Helper to check if Supabase is actually configured via environment variables
+  const isSupabaseConfigured = () => {
+    return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  };
+
+  // Fetch initial data from Supabase
   useEffect(() => {
-    localStorage.setItem('ft_posts', JSON.stringify(posts));
-  }, [posts]);
+    const loadData = async () => {
+      if (!isSupabaseConfigured()) {
+        console.log("Supabase environment variables not found. Running in Demo Mode with mock data.");
+        setPosts(MOCK_POSTS);
+        setIsInitialLoading(false);
+        return;
+      }
 
-  // Sync username to local storage
-  useEffect(() => {
-    if (customUsername) {
-      localStorage.setItem('ft_username', customUsername);
-    }
-  }, [customUsername]);
+      try {
+        // Fetch posts
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*, comments(*)');
+        
+        if (postsError) throw postsError;
+        
+        // Fallback to mock data if empty (for initial demo feel)
+        if (!postsData || postsData.length === 0) {
+          setPosts(MOCK_POSTS);
+        } else {
+          setPosts(postsData);
+        }
 
-  const handleUpdateUsername = (newName: string) => {
+        // Fetch user profile if authenticated
+        if (isAuthenticated && user?.sub) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.sub)
+            .single();
+          
+          if (profileData?.username) {
+            setCustomUsername(profileData.username);
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch initial data:", err?.message || err);
+        setPosts(MOCK_POSTS); // Graceful fallback
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated, user]);
+
+  const handleUpdateUsername = async (newName: string) => {
+    if (!isAuthenticated || !user?.sub) return;
     setIsSaving(true);
-    setCustomUsername(newName);
     
-    // Cascade update: Update all posts and comments by this user
-    if (isAuthenticated && user?.sub) {
+    try {
+      if (isSupabaseConfigured()) {
+        const { error } = await supabase
+          .from('profiles')
+          .upsert({ id: user.sub, username: newName });
+
+        if (error) throw error;
+      }
+
+      setCustomUsername(newName);
+      
+      // Cascade update local posts for immediate UI feedback
       setPosts(prev => prev.map(post => {
         let updatedPost = { ...post };
         if (post.authorId === user.sub) {
           updatedPost.author = newName;
         }
-        updatedPost.comments = post.comments.map(comment => {
-          if (comment.authorId === user.sub) {
-            return { ...comment, author: newName };
-          }
-          return comment;
-        });
+        if (post.comments) {
+          updatedPost.comments = post.comments.map(comment => {
+            if (comment.authorId === user.sub) {
+              return { ...comment, author: newName };
+            }
+            return comment;
+          });
+        }
         return updatedPost;
       }));
+    } catch (err: any) {
+      console.error("Failed to update username:", err?.message || err);
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
     }
-    
-    setTimeout(() => setIsSaving(false), 800);
   };
 
-  const handleAddPost = (newPost: Post) => {
+  const handleAddPost = async (newPost: Post) => {
     setIsSaving(true);
-    setPosts(prev => [newPost, ...prev]);
-    setTimeout(() => setIsSaving(false), 800);
+    try {
+      if (isSupabaseConfigured()) {
+        const { error } = await supabase
+          .from('posts')
+          .insert([newPost]);
+        
+        if (error) throw error;
+      }
+      setPosts(prev => [newPost, ...prev]);
+    } catch (err: any) {
+      console.error("Failed to add post:", err?.message || err);
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
+    }
   };
 
-  const handleAddComment = (postId: string, comment: Comment) => {
+  const handleAddComment = async (postId: string, comment: Comment) => {
     setIsSaving(true);
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...p.comments, comment] } : p));
-    setTimeout(() => setIsSaving(false), 800);
+    try {
+      if (isSupabaseConfigured()) {
+        const { error } = await supabase
+          .from('comments')
+          .insert([{ ...comment, post_id: postId }]);
+        
+        if (error) throw error;
+      }
+
+      setPosts(prev => prev.map(p => 
+        p.id === postId 
+          ? { ...p, comments: [...(p.comments || []), comment] } 
+          : p
+      ));
+    } catch (err: any) {
+      console.error("Failed to add comment:", err?.message || err);
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
+    }
   };
 
-  const handleDeletePost = (postId: string) => {
+  const handleDeletePost = async (postId: string) => {
     if (window.confirm("Are you sure you want to delete this experience? This cannot be undone.")) {
       setIsSaving(true);
-      setPosts(prev => prev.filter(p => p.id !== postId));
-      setTimeout(() => setIsSaving(false), 800);
+      try {
+        if (isSupabaseConfigured()) {
+          const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', postId);
+          
+          if (error) throw error;
+        }
+        setPosts(prev => prev.filter(p => p.id !== postId));
+      } catch (err: any) {
+        console.error("Failed to delete post:", err?.message || err);
+      } finally {
+        setTimeout(() => setIsSaving(false), 500);
+      }
     }
   };
 
-  const handleTogglePin = (postId: string) => {
+  const handleTogglePin = async (postId: string) => {
     setIsSaving(true);
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        return { ...p, isFeatured: !p.isFeatured };
+    try {
+      const targetPost = posts.find(p => p.id === postId);
+      const newPinnedStatus = !targetPost?.isFeatured;
+
+      if (isSupabaseConfigured()) {
+        // Update DB
+        // 1. Unpin all others
+        await supabase.from('posts').update({ isFeatured: false }).neq('id', postId);
+        // 2. Toggle target
+        await supabase.from('posts').update({ isFeatured: newPinnedStatus }).eq('id', postId);
       }
-      return { ...p, isFeatured: false };
-    }));
-    setTimeout(() => setIsSaving(false), 800);
+
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          return { ...p, isFeatured: newPinnedStatus };
+        }
+        return { ...p, isFeatured: false };
+      }));
+    } catch (err: any) {
+      console.error("Failed to toggle pin:", err?.message || err);
+    } finally {
+      setTimeout(() => setIsSaving(false), 500);
+    }
   };
 
   const filteredPosts = useMemo(() => {
@@ -195,7 +303,18 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
     });
   }, [posts, selectedCategory, searchQuery]);
 
-  const featuredPost = useMemo(() => posts.find(p => p.isFeatured) || posts[0], [posts]);
+  const featuredPost = useMemo(() => posts.find(p => p.isFeatured) || (posts.length > 0 ? posts[0] : null), [posts]);
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fcfbf7]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-8 border-black border-t-blue-600 rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="font-black doodle-font text-2xl uppercase italic tracking-widest">Opening the Archive...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -283,6 +402,10 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
 const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
+  const isSupabaseConfigured = () => {
+    return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  };
+
   return (
     <Auth0Provider
       domain={CONFIG.AUTH0_DOMAIN}
@@ -300,7 +423,7 @@ const App: React.FC = () => {
                <h2 className="text-7xl font-black mb-6 italic tracking-tighter">first.time</h2>
                <p className="text-2xl font-bold mb-12 italic text-black">"Everyone starts at zero."</p>
                <div className="inline-block bg-black text-white px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em]">
-                 Storage: Local Browser Mode
+                 Storage: {isSupabaseConfigured() ? 'Persistent Cloud (Supabase)' : 'Demo Mode (Mock Data)'}
                </div>
             </div>
           </footer>
