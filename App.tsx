@@ -4,17 +4,14 @@ import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category } from './types';
 import { MOCK_POSTS, CATEGORIES } from './constants';
+import { CONFIG } from './config';
 import PostCard from './components/PostCard';
 import PostDetail from './components/PostDetail';
 import SubmissionForm from './components/SubmissionForm';
 import Profile from './components/Profile';
 
-// Auth0 Configuration (Placeholder values - ensure these are set in your Auth0 dashboard)
-const AUTH0_DOMAIN = "your-auth0-domain.auth0.com";
-const AUTH0_CLIENT_ID = "your-client-id";
-
 const Header: React.FC = () => {
-  const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0();
+  const { loginWithRedirect, logout, isAuthenticated, user, isLoading } = useAuth0();
 
   return (
     <header className="sticky top-0 z-50 bg-[#fcfbf7]/95 backdrop-blur-md border-b-4 border-black px-4 py-4 sm:px-8">
@@ -27,7 +24,10 @@ const Header: React.FC = () => {
         </Link>
         <nav className="flex items-center gap-4 sm:gap-8">
           <Link to="/" className="text-sm font-black hover:text-blue-600 transition-colors uppercase tracking-tighter underline decoration-4 decoration-blue-200 underline-offset-4">Feed</Link>
-          {isAuthenticated ? (
+          
+          {isLoading ? (
+            <div className="w-8 h-8 border-4 border-black border-t-blue-600 rounded-full animate-spin"></div>
+          ) : isAuthenticated ? (
             <div className="flex items-center gap-4">
               <Link to="/profile" className="flex items-center gap-2 group">
                 <img src={user?.picture} className="w-8 h-8 rounded-full border-2 border-black" alt="Profile" />
@@ -48,6 +48,7 @@ const Header: React.FC = () => {
               Login
             </button>
           )}
+          
           <Link 
             to="/submit" 
             className="bg-black text-white px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-600 hover:scale-105 transition-all shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1"
@@ -61,7 +62,6 @@ const Header: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  const { user } = useAuth0();
   const [posts, setPosts] = useState<Post[]>(() => {
     const saved = localStorage.getItem('ft_posts');
     return saved ? JSON.parse(saved) : MOCK_POSTS;
@@ -193,8 +193,8 @@ const MainContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <Auth0Provider
-      domain={AUTH0_DOMAIN}
-      clientId={AUTH0_CLIENT_ID}
+      domain={CONFIG.AUTH0_DOMAIN}
+      clientId={CONFIG.AUTH0_CLIENT_ID}
       authorizationParams={{
         redirect_uri: window.location.origin
       }}

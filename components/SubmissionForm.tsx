@@ -4,10 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Category, Post, RealityCheck } from '../types';
 import { CATEGORIES } from '../constants';
-
-// For production, use environment variables and unsigned upload presets
-const CLOUDINARY_CLOUD_NAME = "your-cloud-name";
-const CLOUDINARY_UPLOAD_PRESET = "your-unsigned-preset";
+import { CONFIG } from '../config';
 
 interface SubmissionFormProps {
   onAddPost: (post: Post) => void;
@@ -55,8 +52,8 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
     // @ts-ignore - Cloudinary is globally loaded in index.html
     const myWidget = window.cloudinary.createUploadWidget(
       {
-        cloudName: CLOUDINARY_CLOUD_NAME,
-        uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+        cloudName: CONFIG.CLOUDINARY_CLOUD_NAME,
+        uploadPreset: CONFIG.CLOUDINARY_UPLOAD_PRESET,
         sources: ['local', 'url', 'camera'],
         showAdvancedOptions: false,
         cropping: true,
@@ -300,7 +297,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
             disabled={loading}
             className="w-full py-8 text-3xl font-black text-white bg-black hover:bg-blue-600 transition-all shadow-[12px_12px_0px_0px_#2563eb] active:shadow-none active:translate-x-3 active:translate-y-3 uppercase tracking-tighter italic"
           >
-            {loading ? 'STORING IN MONGODB...' : 'PERMANENTLY LOG THIS FIRST'}
+            {loading ? 'STORING...' : 'PERMANENTLY LOG THIS FIRST'}
           </button>
           <p className="text-center mt-8 text-xs font-black uppercase tracking-widest text-black opacity-40">Your account is secured with Auth0.</p>
         </div>
