@@ -4,7 +4,6 @@ import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category, Comment } from './types.ts';
 import { CATEGORIES, MOCK_POSTS } from './constants.ts';
-import { CONFIG } from './config.ts';
 import { supabase } from './supabase.ts';
 import PostCard from './components/PostCard.tsx';
 import PostDetail from './components/PostDetail.tsx';
@@ -112,7 +111,9 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
 
   // Helper to check if Supabase is actually configured via environment variables
   const isSupabaseConfigured = () => {
-    return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_ANON_KEY;
+    return !!(url && key && !url.includes('placeholder-url') && key !== 'placeholder-key');
   };
 
   // Fetch initial data from Supabase
@@ -403,13 +404,19 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const isSupabaseConfigured = () => {
-    return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_ANON_KEY;
+    return !!(url && key && !url.includes('placeholder-url') && key !== 'placeholder-key');
   };
+
+  // Auth0 credentials from environment
+  const auth0Domain = process.env.AUTH0_DOMAIN || '';
+  const auth0ClientId = process.env.AUTH0_CLIENT_ID || '';
 
   return (
     <Auth0Provider
-      domain={CONFIG.AUTH0_DOMAIN}
-      clientId={CONFIG.AUTH0_CLIENT_ID}
+      domain={auth0Domain}
+      clientId={auth0ClientId}
       authorizationParams={{
         redirect_uri: window.location.origin
       }}

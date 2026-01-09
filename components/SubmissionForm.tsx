@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Category, Post, RealityCheck } from '../types.ts';
 import { CATEGORIES } from '../constants.ts';
-import { CONFIG } from '../config.ts';
 
 interface SubmissionFormProps {
   onAddPost: (post: Post) => void;
@@ -70,10 +69,18 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, defaultUsern
       return;
     }
 
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      alert("Cloudinary not configured. Check environment variables.");
+      return;
+    }
+
     const myWidget = cloudinary.createUploadWidget(
       {
-        cloudName: CONFIG.CLOUDINARY_CLOUD_NAME,
-        uploadPreset: CONFIG.CLOUDINARY_UPLOAD_PRESET,
+        cloudName: cloudName,
+        uploadPreset: uploadPreset,
         sources: ['local', 'url', 'camera'],
         showAdvancedOptions: false,
         cropping: true,
