@@ -191,12 +191,16 @@ const MainContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // Use the origin from CONFIG if provided, otherwise fallback to window.location.origin
+  // We strip any trailing slashes to minimize common mismatches.
+  const redirectUri = (CONFIG.AUTH0_REDIRECT_URI || window.location.origin).replace(/\/$/, "");
+
   return (
     <Auth0Provider
       domain={CONFIG.AUTH0_DOMAIN}
       clientId={CONFIG.AUTH0_CLIENT_ID}
       authorizationParams={{
-        redirect_uri: window.location.origin
+        redirect_uri: redirectUri
       }}
     >
       <HashRouter>

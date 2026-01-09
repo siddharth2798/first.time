@@ -8,7 +8,14 @@
 export const CONFIG = {
   // Auth0 Settings
   AUTH0_DOMAIN: "dev-8kjdjsblslxs8apq.us.auth0.com",
-  AUTH0_CLIENT_ID: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  AUTH0_CLIENT_ID: "r88mgFm5Cd9xOTCwejPmYA5FOj7ZAb8e",
+  
+  /**
+   * IMPORTANT: The URL below MUST be added to "Allowed Callback URLs", 
+   * "Allowed Logout URLs", and "Allowed Web Origins" in your Auth0 Dashboard.
+   * If left as null, it defaults to window.location.origin.
+   */
+  AUTH0_REDIRECT_URI: null, 
   
   // Cloudinary Settings
   CLOUDINARY_CLOUD_NAME: "your-cloud-name",
