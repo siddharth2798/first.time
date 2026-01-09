@@ -1,16 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Post, Comment } from '../types.ts';
 
 interface PostDetailProps {
   posts: Post[];
   onAddComment: (postId: string, comment: Comment) => void;
+  // Added missing handlers
+  onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
-const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
+const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment, onDelete, onTogglePin }) => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const post = posts.find(p => p.id === id);
   const [newCommentText, setNewCommentText] = useState('');
@@ -47,14 +51,40 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
     setNewCommentText('');
   };
 
+  // Helper for deleting and navigating home
+  const handleDelete = () => {
+    onDelete(post.id);
+    navigate('/');
+  };
+
   return (
     <article className="max-w-6xl mx-auto px-4 py-12 md:py-24">
-      <Link to="/" className="inline-flex items-center text-xs font-black uppercase tracking-widest text-gray-400 mb-12 hover:text-black transition-colors group">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Back to the feed
-      </Link>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
+        <Link to="/" className="inline-flex items-center text-xs font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors group">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to the feed
+        </Link>
+
+        {/* Action buttons for post owner */}
+        {isAuthenticated && user?.sub === post.authorId && (
+          <div className="flex gap-4">
+            <button 
+              onClick={() => onTogglePin(post.id)}
+              className={`text-xs font-black uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none ${post.isFeatured ? 'bg-yellow-400' : 'bg-white'}`}
+            >
+              {post.isFeatured ? '📌 Unpin Featured' : '📍 Pin as Featured'}
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="text-xs font-black uppercase tracking-widest px-4 py-2 border-2 border-black bg-white text-red-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none hover:bg-red-600 hover:text-white"
+            >
+              🗑️ Delete Log
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         <div className="lg:col-span-8">

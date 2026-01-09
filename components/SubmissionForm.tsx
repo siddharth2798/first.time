@@ -8,16 +8,17 @@ import { CONFIG } from '../config.ts';
 
 interface SubmissionFormProps {
   onAddPost: (post: Post) => void;
+  defaultUsername: string;
 }
 
-const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
+const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost, defaultUsername }) => {
   const { user, isAuthenticated, loginWithRedirect, isLoading } = useAuth0();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
-    author: '',
+    author: defaultUsername || '',
     category: 'Home & DIY' as Category,
     difficulty: 3,
     content: '',
@@ -28,9 +29,9 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
 
   useEffect(() => {
     if (user && !formData.author) {
-      setFormData(prev => ({ ...prev, author: user.nickname || user.name || '' }));
+      setFormData(prev => ({ ...prev, author: defaultUsername || user.nickname || user.name || '' }));
     }
-  }, [user]);
+  }, [user, defaultUsername]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -119,7 +120,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
       const newPost: Post = {
         id: Math.random().toString(36).substr(2, 9),
         title: formData.title,
-        author: formData.author || user?.nickname || user?.name || 'Explorer',
+        author: formData.author || defaultUsername || user?.nickname || user?.name || 'Explorer',
         authorId: user?.sub,
         category: formData.category,
         difficulty: formData.difficulty,

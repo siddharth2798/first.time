@@ -2,20 +2,20 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
-import { Post, Category } from './types.ts';
-import { MOCK_POSTS, CATEGORIES } from './constants.ts';
+import { Post, Category, Comment } from './types.ts';
+import { CATEGORIES, MOCK_POSTS } from './constants.ts';
 import { CONFIG } from './config.ts';
 import PostCard from './components/PostCard.tsx';
 import PostDetail from './components/PostDetail.tsx';
 import SubmissionForm from './components/SubmissionForm.tsx';
 import Profile from './components/Profile.tsx';
+import Settings from './components/Settings.tsx';
 
-const Header: React.FC = () => {
+const Header: React.FC<{ isSaving?: boolean }> = ({ isSaving }) => {
   const { loginWithRedirect, logout, user, isAuthenticated, isLoading } = useAuth0();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -29,11 +29,16 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 bg-[#fcfbf7]/95 backdrop-blur-md border-b-4 border-black px-4 py-4 sm:px-8">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-        <Link to="/" className="flex flex-col group">
+        <Link to="/" className="flex flex-col group relative">
           <h1 className="text-3xl font-black tracking-tighter text-black group-hover:text-blue-600 transition-colors">
             first.<span className="text-blue-600 group-hover:text-black">time</span>
           </h1>
           <p className="text-[12px] text-black italic uppercase tracking-widest font-bold doodle-font">Everyone starts at zero</p>
+          {isSaving && (
+            <div className="absolute -left-6 top-1">
+               <div className="w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-black animate-ping"></div>
+            </div>
+          )}
         </Link>
         <nav className="flex items-center gap-4 sm:gap-8">
           <Link to="/" className="text-sm font-black hover:text-blue-600 transition-colors uppercase tracking-tighter">Feed</Link>
@@ -49,8 +54,6 @@ const Header: React.FC = () => {
                   <button 
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center gap-3 group focus:outline-none"
-                    aria-expanded={dropdownOpen}
-                    aria-haspopup="true"
                   >
                     <div className="relative">
                       <img 
@@ -58,43 +61,30 @@ const Header: React.FC = () => {
                         alt={user?.name} 
                         className="w-12 h-12 border-2 border-black rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:shadow-none group-hover:translate-x-1 group-hover:translate-y-1 transition-all" 
                       />
-                      {dropdownOpen && <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 border-2 border-black rounded-full"></div>}
                     </div>
                   </button>
 
                   {dropdownOpen && (
-                    <div className="absolute right-0 mt-4 w-64 bg-white scrapbook-border z-50 p-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 mt-4 w-64 bg-white scrapbook-border z-50 p-6">
                       <div className="mb-6 pb-6 border-b-2 border-black border-dashed">
-                        <p className="text-[10px] font-black uppercase opacity-40 mb-1">Explorer</p>
                         <p className="text-lg font-black truncate text-black">{user?.nickname || user?.name}</p>
-                        <p className="text-[10px] font-mono opacity-50 mt-1 uppercase">ID: {user?.sub?.slice(-8)}</p>
                       </div>
                       <div className="flex flex-col gap-4">
-                        <Link 
-                          to="/profile" 
-                          onClick={() => setDropdownOpen(false)}
-                          className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors flex items-center gap-2"
-                        >
+                        <Link to="/profile" onClick={() => setDropdownOpen(false)} className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors flex items-center gap-2">
                           <span>📓</span> View Archive
                         </Link>
-                        <button 
-                          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                          className="text-xs font-black uppercase tracking-widest text-left hover:text-red-600 transition-colors flex items-center gap-2"
-                        >
+                        <Link to="/settings" onClick={() => setDropdownOpen(false)} className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors flex items-center gap-2">
+                          <span>⚙️</span> Account Settings
+                        </Link>
+                        <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} className="text-xs font-black uppercase tracking-widest text-left hover:text-red-600 transition-colors flex items-center gap-2">
                           <span>🚪</span> Logout
                         </button>
                       </div>
-                      <div className="absolute -bottom-4 -left-4 w-12 h-12 pointer-events-none doodle-font text-blue-600 text-2xl opacity-20 -rotate-12 select-none">HI!</div>
                     </div>
                   )}
                 </div>
               ) : (
-                <button 
-                  onClick={() => loginWithRedirect()}
-                  className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors"
-                >
-                  Login
-                </button>
+                <button onClick={() => loginWithRedirect()} className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors">Login</button>
               )
             )}
             
@@ -111,27 +101,86 @@ const Header: React.FC = () => {
   );
 };
 
-const MainContent: React.FC = () => {
+const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsSaving }) => {
+  const { user, isAuthenticated } = useAuth0();
   const [posts, setPosts] = useState<Post[]>(() => {
     const saved = localStorage.getItem('ft_posts');
     return saved ? JSON.parse(saved) : MOCK_POSTS;
   });
+
+  const [customUsername, setCustomUsername] = useState<string>(() => {
+    return localStorage.getItem('ft_username') || '';
+  });
+  
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleAddPost = async (newPost: Post) => {
-    setPosts(prev => [newPost, ...prev]);
-  };
-
-  const handleAddComment = async (postId: string, comment: any) => {
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...p.comments, comment] } : p));
-  };
-
+  // Sync posts to local storage
   useEffect(() => {
     localStorage.setItem('ft_posts', JSON.stringify(posts));
   }, [posts]);
 
-  const featuredPost = useMemo(() => posts.find(p => p.isFeatured) || posts[0], [posts]);
+  // Sync username to local storage
+  useEffect(() => {
+    if (customUsername) {
+      localStorage.setItem('ft_username', customUsername);
+    }
+  }, [customUsername]);
+
+  const handleUpdateUsername = (newName: string) => {
+    setIsSaving(true);
+    setCustomUsername(newName);
+    
+    // Cascade update: Update all posts and comments by this user
+    if (isAuthenticated && user?.sub) {
+      setPosts(prev => prev.map(post => {
+        let updatedPost = { ...post };
+        if (post.authorId === user.sub) {
+          updatedPost.author = newName;
+        }
+        updatedPost.comments = post.comments.map(comment => {
+          if (comment.authorId === user.sub) {
+            return { ...comment, author: newName };
+          }
+          return comment;
+        });
+        return updatedPost;
+      }));
+    }
+    
+    setTimeout(() => setIsSaving(false), 800);
+  };
+
+  const handleAddPost = (newPost: Post) => {
+    setIsSaving(true);
+    setPosts(prev => [newPost, ...prev]);
+    setTimeout(() => setIsSaving(false), 800);
+  };
+
+  const handleAddComment = (postId: string, comment: Comment) => {
+    setIsSaving(true);
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...p.comments, comment] } : p));
+    setTimeout(() => setIsSaving(false), 800);
+  };
+
+  const handleDeletePost = (postId: string) => {
+    if (window.confirm("Are you sure you want to delete this experience? This cannot be undone.")) {
+      setIsSaving(true);
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      setTimeout(() => setIsSaving(false), 800);
+    }
+  };
+
+  const handleTogglePin = (postId: string) => {
+    setIsSaving(true);
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, isFeatured: !p.isFeatured };
+      }
+      return { ...p, isFeatured: false };
+    }));
+    setTimeout(() => setIsSaving(false), 800);
+  };
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
@@ -139,8 +188,14 @@ const MainContent: React.FC = () => {
       const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             post.content.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }).sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }, [posts, selectedCategory, searchQuery]);
+
+  const featuredPost = useMemo(() => posts.find(p => p.isFeatured) || posts[0], [posts]);
 
   const HomePage: React.FC = () => (
     <main className="max-w-7xl mx-auto px-4 py-12 sm:px-8">
@@ -170,7 +225,6 @@ const MainContent: React.FC = () => {
                 <img src={featuredPost.imageUrl} alt={featuredPost.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000" />
               </div>
             </div>
-            <div className="absolute -top-10 -right-10 w-32 h-32 opacity-10 pointer-events-none doodle-font text-8xl text-blue-600 select-none">BEST</div>
           </Link>
         </section>
       )}
@@ -184,63 +238,46 @@ const MainContent: React.FC = () => {
           <input 
             type="text" 
             placeholder="Search first-hand knowledge..." 
-            className="w-full bg-white border-4 border-black p-6 text-2xl font-bold focus:outline-none transition-all focus:translate-x-2 focus:translate-y-2 focus:shadow-none shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] placeholder:text-gray-300"
+            className="w-full bg-white border-4 border-black p-6 text-2xl font-bold focus:outline-none focus:translate-x-2 focus:translate-y-2 focus:shadow-none shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] placeholder:text-gray-300 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <div className="absolute right-8 top-1/2 -translate-y-1/2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
         </div>
-
         <div className="flex flex-wrap gap-4">
-          <button 
-            onClick={() => setSelectedCategory('All')}
-            className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === 'All' ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}
-          >
-            All Firsts
-          </button>
+          <button onClick={() => setSelectedCategory('All')} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === 'All' ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>All Firsts</button>
           {CATEGORIES.map(cat => (
-            <button 
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === cat ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}
-            >
-              {cat}
-            </button>
+            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === cat ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>{cat}</button>
           ))}
         </div>
       </section>
 
-      {filteredPosts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-          {filteredPosts.map(post => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-40 bg-white scrapbook-border p-16 rotate-2">
-          <p className="text-5xl font-black text-gray-200 uppercase italic mb-6">Ghost town...</p>
-          <p className="text-black font-black text-xl mb-10">No firsts match your search.</p>
-          <button onClick={() => {setSearchQuery(''); setSelectedCategory('All')}} className="bg-black text-white px-10 py-4 font-black uppercase tracking-widest">Reset Hunt</button>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+        {filteredPosts.map(post => (
+          <PostCard 
+            key={post.id} 
+            post={post} 
+            onDelete={handleDeletePost}
+            onTogglePin={handleTogglePin}
+          />
+        ))}
+      </div>
     </main>
   );
 
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/post/:id" element={<PostDetail posts={posts} onAddComment={handleAddComment} />} />
-      <Route path="/submit" element={<SubmissionForm onAddPost={handleAddPost} />} />
-      <Route path="/profile" element={<Profile posts={posts} />} />
+      <Route path="/post/:id" element={<PostDetail posts={posts} onAddComment={handleAddComment} onDelete={handleDeletePost} onTogglePin={handleTogglePin} />} />
+      <Route path="/submit" element={<SubmissionForm onAddPost={handleAddPost} defaultUsername={customUsername} />} />
+      <Route path="/profile" element={<Profile posts={posts} onDelete={handleDeletePost} onTogglePin={handleTogglePin} />} />
+      <Route path="/settings" element={<Settings onUpdateUsername={handleUpdateUsername} currentUsername={customUsername} />} />
     </Routes>
   );
 };
 
 const App: React.FC = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
   return (
     <Auth0Provider
       domain={CONFIG.AUTH0_DOMAIN}
@@ -251,18 +288,15 @@ const App: React.FC = () => {
     >
       <HashRouter>
         <div className="min-h-screen selection:bg-blue-600 selection:text-white">
-          <Header />
-          <MainContent />
+          <Header isSaving={isSaving} />
+          <MainContent setIsSaving={setIsSaving} />
           <footer className="mt-48 border-t-8 border-black bg-white py-32 text-center px-6">
             <div className="max-w-4xl mx-auto">
                <h2 className="text-7xl font-black mb-6 italic tracking-tighter">first.time</h2>
-               <p className="text-2xl font-bold mb-12 italic text-black">"Because failing for the first time is just a first step."</p>
-               <div className="flex flex-wrap justify-center gap-12 mb-20">
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-blue-500">Instagram</a>
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-yellow-500">Stories</a>
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-red-500">Community</a>
+               <p className="text-2xl font-bold mb-12 italic text-black">"Everyone starts at zero."</p>
+               <div className="inline-block bg-black text-white px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em]">
+                 Storage: Local Browser Mode
                </div>
-               <p className="text-black font-mono text-sm font-bold opacity-30">&copy; 2025 THE ZERO PROJECT. BUILT TO LEARN.</p>
             </div>
           </footer>
         </div>

@@ -7,9 +7,12 @@ import PostCard from './PostCard.tsx';
 
 interface ProfileProps {
   posts: Post[];
+  // Added missing handlers passed from App.tsx
+  onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ posts }) => {
+const Profile: React.FC<ProfileProps> = ({ posts, onDelete, onTogglePin }) => {
   const { user, isAuthenticated, isLoading } = useAuth0();
   const navigate = useNavigate();
 
@@ -79,7 +82,12 @@ const Profile: React.FC<ProfileProps> = ({ posts }) => {
         {myPosts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {myPosts.map(post => (
-              <PostCard key={post.id} post={post} />
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onDelete={onDelete} 
+                onTogglePin={onTogglePin} 
+              />
             ))}
           </div>
         ) : (
