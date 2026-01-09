@@ -56,6 +56,12 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
     }));
   };
 
+  const removeRealityCheck = (index: number) => {
+    if (formData.realityChecks.length <= 1) return;
+    const newChecks = formData.realityChecks.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, realityChecks: newChecks }));
+  };
+
   const openCloudinaryWidget = useCallback(() => {
     const cloudinary = (window as any).cloudinary;
     if (!cloudinary) {
@@ -290,6 +296,59 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
                   placeholder="Essential lesson..."
                   className="w-full p-5 border-4 border-black bg-blue-50 focus:outline-none font-black text-lg"
                 />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-12">
+          <div className="flex justify-between items-center gap-4">
+             <div className="flex items-center gap-4 flex-1">
+                <h2 className="text-4xl font-black uppercase italic tracking-tighter">The Reality Gap</h2>
+                <div className="h-[4px] flex-1 bg-black"></div>
+             </div>
+             <button 
+                type="button" 
+                onClick={addRealityCheck} 
+                className="text-[10px] font-black bg-black text-white px-6 py-3 uppercase tracking-widest shadow-lg hover:bg-blue-600 transition-colors whitespace-nowrap"
+             >
+                + Add Reality Check
+             </button>
+          </div>
+          <div className="space-y-10">
+            {formData.realityChecks.map((check, i) => (
+              <div key={i} className="relative group p-8 md:p-12 bg-orange-50 scrapbook-border rotate-1 hover:rotate-0 transition-transform duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Idealized Expectation</label>
+                    <textarea 
+                      value={check.expectation}
+                      onChange={(e) => handleRealityCheckChange(i, 'expectation', e.target.value)}
+                      placeholder="What the instructions said..."
+                      rows={2}
+                      className="w-full p-4 border-b-4 border-orange-200 bg-transparent focus:outline-none focus:border-orange-500 italic font-black text-xl placeholder:text-orange-200 resize-none"
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest">Cold Hard Reality</label>
+                    <textarea 
+                      value={check.reality}
+                      onChange={(e) => handleRealityCheckChange(i, 'reality', e.target.value)}
+                      placeholder="What actually happened..."
+                      rows={2}
+                      className="w-full p-4 border-b-4 border-black bg-transparent focus:outline-none focus:border-blue-600 font-black text-xl placeholder:text-gray-300 resize-none"
+                    />
+                  </div>
+                </div>
+                {formData.realityChecks.length > 1 && (
+                  <button 
+                    type="button"
+                    onClick={() => removeRealityCheck(i)}
+                    className="absolute -top-3 -right-3 w-8 h-8 bg-black text-white border-2 border-white rounded-full font-black text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    X
+                  </button>
+                )}
               </div>
             ))}
           </div>
