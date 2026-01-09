@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "vite",
+    "start": "vite --port 10000 --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview"
   },
