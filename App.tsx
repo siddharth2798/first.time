@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category } from './types.ts';
@@ -12,6 +12,19 @@ import Profile from './components/Profile.tsx';
 
 const Header: React.FC = () => {
   const { loginWithRedirect, logout, user, isAuthenticated, isLoading } = useAuth0();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-[#fcfbf7]/95 backdrop-blur-md border-b-4 border-black px-4 py-4 sm:px-8">
@@ -32,18 +45,48 @@ const Header: React.FC = () => {
           <div className="flex items-center gap-4">
             {!isLoading && (
               isAuthenticated ? (
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-[10px] font-black uppercase opacity-40">Explorer</p>
-                    <p className="text-xs font-black truncate max-w-[100px]">{user?.nickname || user?.name}</p>
-                  </div>
+                <div className="relative" ref={dropdownRef}>
                   <button 
-                    onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                    className="text-xs font-black uppercase tracking-widest hover:text-red-600 transition-colors"
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="flex items-center gap-3 group focus:outline-none"
+                    aria-expanded={dropdownOpen}
+                    aria-haspopup="true"
                   >
-                    Logout
+                    <div className="relative">
+                      <img 
+                        src={user?.picture} 
+                        alt={user?.name} 
+                        className="w-12 h-12 border-2 border-black rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:shadow-none group-hover:translate-x-1 group-hover:translate-y-1 transition-all" 
+                      />
+                      {dropdownOpen && <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 border-2 border-black rounded-full"></div>}
+                    </div>
                   </button>
-                  <img src={user?.picture} alt={user?.name} className="w-10 h-10 border-2 border-black rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-4 w-64 bg-white scrapbook-border z-50 p-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="mb-6 pb-6 border-b-2 border-black border-dashed">
+                        <p className="text-[10px] font-black uppercase opacity-40 mb-1">Explorer</p>
+                        <p className="text-lg font-black truncate text-black">{user?.nickname || user?.name}</p>
+                        <p className="text-[10px] font-mono opacity-50 mt-1 uppercase">ID: {user?.sub?.slice(-8)}</p>
+                      </div>
+                      <div className="flex flex-col gap-4">
+                        <Link 
+                          to="/profile" 
+                          onClick={() => setDropdownOpen(false)}
+                          className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors flex items-center gap-2"
+                        >
+                          <span>📓</span> View Archive
+                        </Link>
+                        <button 
+                          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                          className="text-xs font-black uppercase tracking-widest text-left hover:text-red-600 transition-colors flex items-center gap-2"
+                        >
+                          <span>🚪</span> Logout
+                        </button>
+                      </div>
+                      <div className="absolute -bottom-4 -left-4 w-12 h-12 pointer-events-none doodle-font text-blue-600 text-2xl opacity-20 -rotate-12 select-none">HI!</div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button 
