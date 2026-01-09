@@ -1,7 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { Category, Post, RealityCheck } from '../types';
 import { CATEGORIES } from '../constants';
 import { CONFIG } from '../config';
@@ -11,11 +10,11 @@ interface SubmissionFormProps {
 }
 
 const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
-  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
+    author: '',
     category: 'Home & DIY' as Category,
     difficulty: 3,
     content: '',
@@ -49,8 +48,13 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
   };
 
   const openCloudinaryWidget = useCallback(() => {
-    // @ts-ignore - Cloudinary is globally loaded in index.html
-    const myWidget = window.cloudinary.createUploadWidget(
+    const cloudinary = (window as any).cloudinary;
+    if (!cloudinary) {
+      console.error("Cloudinary widget not loaded");
+      return;
+    }
+
+    const myWidget = cloudinary.createUploadWidget(
       {
         cloudName: CONFIG.CLOUDINARY_CLOUD_NAME,
         uploadPreset: CONFIG.CLOUDINARY_UPLOAD_PRESET,
@@ -96,19 +100,13 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated) {
-      loginWithRedirect();
-      return;
-    }
     setLoading(true);
 
-    // Simulated API call that would hit MongoDB via an Express endpoint
     setTimeout(() => {
       const newPost: Post = {
         id: Math.random().toString(36).substr(2, 9),
         title: formData.title,
-        author: user?.nickname || user?.name || 'Explorer',
-        authorId: user?.sub,
+        author: formData.author || 'Guest Explorer',
         category: formData.category,
         difficulty: formData.difficulty,
         content: formData.content,
@@ -120,6 +118,12 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
       };
 
       onAddPost(newPost);
+      
+      // Store locally that this user created this post for the Profile view
+      const myCreatedPostIds = JSON.parse(localStorage.getItem('ft_my_post_ids') || '[]');
+      myCreatedPostIds.push(newPost.id);
+      localStorage.setItem('ft_my_post_ids', JSON.stringify(myCreatedPostIds));
+      
       setLoading(false);
       navigate('/');
     }, 1200);
@@ -141,17 +145,31 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
              <div className="h-[4px] flex-1 bg-black"></div>
           </div>
           <div className="grid grid-cols-1 gap-10">
-            <div className="space-y-3">
-              <label className="text-xs font-black uppercase tracking-widest text-black">Project Title</label>
-              <input 
-                required
-                type="text" 
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder="Filing my taxes for the first time..." 
-                className="w-full p-6 border-4 border-black text-2xl focus:outline-none focus:bg-blue-50 font-black placeholder:text-gray-200"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-black">Project Title</label>
+                <input 
+                    required
+                    type="text" 
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Filing my taxes for the first time..." 
+                    className="w-full p-6 border-4 border-black text-lg focus:outline-none focus:bg-blue-50 font-black placeholder:text-gray-200"
+                />
+                </div>
+                <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-widest text-black">Your Name</label>
+                <input 
+                    required
+                    type="text" 
+                    name="author"
+                    value={formData.author}
+                    onChange={handleInputChange}
+                    placeholder="Explorer Name" 
+                    className="w-full p-6 border-4 border-black text-lg focus:outline-none focus:bg-blue-50 font-black placeholder:text-gray-200"
+                />
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -299,7 +317,6 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
           >
             {loading ? 'STORING...' : 'PERMANENTLY LOG THIS FIRST'}
           </button>
-          <p className="text-center mt-8 text-xs font-black uppercase tracking-widest text-black opacity-40">Your account is secured with Auth0.</p>
         </div>
       </form>
     </div>

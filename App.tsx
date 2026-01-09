@@ -1,18 +1,14 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
-import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category } from './types';
 import { MOCK_POSTS, CATEGORIES } from './constants';
-import { CONFIG } from './config';
 import PostCard from './components/PostCard';
 import PostDetail from './components/PostDetail';
 import SubmissionForm from './components/SubmissionForm';
 import Profile from './components/Profile';
 
 const Header: React.FC = () => {
-  const { loginWithRedirect, logout, isAuthenticated, user, isLoading } = useAuth0();
-
   return (
     <header className="sticky top-0 z-50 bg-[#fcfbf7]/95 backdrop-blur-md border-b-4 border-black px-4 py-4 sm:px-8">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -25,29 +21,7 @@ const Header: React.FC = () => {
         <nav className="flex items-center gap-4 sm:gap-8">
           <Link to="/" className="text-sm font-black hover:text-blue-600 transition-colors uppercase tracking-tighter underline decoration-4 decoration-blue-200 underline-offset-4">Feed</Link>
           
-          {isLoading ? (
-            <div className="w-8 h-8 border-4 border-black border-t-blue-600 rounded-full animate-spin"></div>
-          ) : isAuthenticated ? (
-            <div className="flex items-center gap-4">
-              <Link to="/profile" className="flex items-center gap-2 group">
-                <img src={user?.picture} className="w-8 h-8 rounded-full border-2 border-black" alt="Profile" />
-                <span className="text-sm font-black hidden sm:inline">{user?.nickname || user?.name}</span>
-              </Link>
-              <button 
-                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })} 
-                className="text-xs font-black text-red-600 hover:underline uppercase"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => loginWithRedirect()} 
-              className="text-sm font-black hover:text-blue-600 transition-colors uppercase tracking-tighter"
-            >
-              Login
-            </button>
-          )}
+          <Link to="/profile" className="text-sm font-black hover:text-blue-600 transition-colors uppercase tracking-tighter">My Archive</Link>
           
           <Link 
             to="/submit" 
@@ -191,37 +165,25 @@ const MainContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  // Use the origin from CONFIG if provided, otherwise fallback to window.location.origin
-  // We strip any trailing slashes to minimize common mismatches.
-  const redirectUri = (CONFIG.AUTH0_REDIRECT_URI || window.location.origin).replace(/\/$/, "");
-
   return (
-    <Auth0Provider
-      domain={CONFIG.AUTH0_DOMAIN}
-      clientId={CONFIG.AUTH0_CLIENT_ID}
-      authorizationParams={{
-        redirect_uri: redirectUri
-      }}
-    >
-      <HashRouter>
-        <div className="min-h-screen selection:bg-blue-600 selection:text-white">
-          <Header />
-          <MainContent />
-          <footer className="mt-48 border-t-8 border-black bg-white py-32 text-center px-6">
-            <div className="max-w-4xl mx-auto">
-               <h2 className="text-7xl font-black mb-6 italic tracking-tighter">first.time</h2>
-               <p className="text-2xl font-bold mb-12 italic text-black">"Because failing for the first time is just a first step."</p>
-               <div className="flex flex-wrap justify-center gap-12 mb-20">
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-blue-500">Instagram</a>
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-yellow-500">Stories</a>
-                  <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-red-500">Community</a>
-               </div>
-               <p className="text-black font-mono text-sm font-bold opacity-30">&copy; 2025 THE ZERO PROJECT. BUILT TO LEARN.</p>
-            </div>
-          </footer>
-        </div>
-      </HashRouter>
-    </Auth0Provider>
+    <HashRouter>
+      <div className="min-h-screen selection:bg-blue-600 selection:text-white">
+        <Header />
+        <MainContent />
+        <footer className="mt-48 border-t-8 border-black bg-white py-32 text-center px-6">
+          <div className="max-w-4xl mx-auto">
+             <h2 className="text-7xl font-black mb-6 italic tracking-tighter">first.time</h2>
+             <p className="text-2xl font-bold mb-12 italic text-black">"Because failing for the first time is just a first step."</p>
+             <div className="flex flex-wrap justify-center gap-12 mb-20">
+                <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-blue-500">Instagram</a>
+                <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-yellow-500">Stories</a>
+                <a href="#" className="font-black text-sm uppercase underline decoration-4 decoration-red-500">Community</a>
+             </div>
+             <p className="text-black font-mono text-sm font-bold opacity-30">&copy; 2025 THE ZERO PROJECT. BUILT TO LEARN.</p>
+          </div>
+        </footer>
+      </div>
+    </HashRouter>
   );
 };
 

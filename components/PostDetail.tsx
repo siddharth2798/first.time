@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { Post, Comment } from '../types';
 
 interface PostDetailProps {
@@ -11,9 +10,9 @@ interface PostDetailProps {
 
 const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
   const { id } = useParams<{ id: string }>();
-  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const post = posts.find(p => p.id === id);
   const [newCommentText, setNewCommentText] = useState('');
+  const [guestName, setGuestName] = useState('');
 
   if (!post) {
     return (
@@ -26,18 +25,18 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim() || !isAuthenticated) return;
+    if (!newCommentText.trim()) return;
 
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
-      author: user?.nickname || user?.name || 'Explorer',
-      authorId: user?.sub,
+      author: guestName.trim() || 'Anonymous Explorer',
       text: newCommentText,
       createdAt: new Date().toISOString()
     };
 
     onAddComment(post.id, comment);
     setNewCommentText('');
+    setGuestName('');
   };
 
   return (
@@ -128,24 +127,25 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
               )}
             </div>
 
-            <form onSubmit={handleCommentSubmit} className="bg-gray-100 p-8 scrapbook-border">
+            <form onSubmit={handleCommentSubmit} className="bg-gray-100 p-8 scrapbook-border space-y-4">
               <h4 className="font-black uppercase text-xs tracking-widest mb-4">Leave your mark</h4>
+              <input 
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Your name (optional)"
+                className="w-full p-4 border-2 border-black focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white"
+              />
               <textarea 
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
-                placeholder={isAuthenticated ? "Share some wisdom or ask a question..." : "Login to leave a comment..."}
-                disabled={!isAuthenticated}
+                placeholder="Share some wisdom or ask a question..."
                 className="w-full p-4 border-2 border-black mb-4 focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white min-h-[120px]"
               />
-              <div className="flex justify-between items-center">
-                {!isAuthenticated && (
-                    <p className="text-xs font-bold text-gray-400">
-                        You must be <button type="button" onClick={() => loginWithRedirect()} className="text-blue-600 underline">logged in</button> to comment.
-                    </p>
-                )}
+              <div className="flex justify-end items-center">
                 <button 
                   type="submit"
-                  disabled={!isAuthenticated || !newCommentText.trim()}
+                  disabled={!newCommentText.trim()}
                   className="bg-black text-white px-8 py-3 font-black uppercase text-xs tracking-widest hover:bg-blue-600 disabled:bg-gray-300 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 >
                   Send Advice
