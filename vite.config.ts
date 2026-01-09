@@ -8,5 +8,6 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    allowedHosts: ["first-time-pmr9.onrender.com"]
   },
 });
