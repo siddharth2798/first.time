@@ -197,76 +197,81 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
 
   const featuredPost = useMemo(() => posts.find(p => p.isFeatured) || posts[0], [posts]);
 
-  const HomePage: React.FC = () => (
-    <main className="max-w-7xl mx-auto px-4 py-12 sm:px-8">
-      {featuredPost && selectedCategory === 'All' && !searchQuery && (
-        <section className="mb-24">
-          <div className="flex items-center gap-4 mb-6">
-            <span className="text-sm font-black bg-blue-600 text-white px-3 py-1 rounded uppercase tracking-tighter">Weekly Gold</span>
-            <div className="h-[3px] flex-1 bg-black"></div>
-          </div>
-          <Link to={`/post/${featuredPost.id}`} className="group relative block bg-white p-8 sm:p-14 featured-card transition-all hover:-rotate-1">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div className="order-2 lg:order-1">
-                <span className="text-blue-600 font-black text-lg uppercase tracking-widest doodle-font mb-4 block underline decoration-blue-200">Featured Legend</span>
-                <h2 className="text-5xl sm:text-7xl font-black mb-8 group-hover:text-blue-600 transition-colors leading-none tracking-tight">{featuredPost.title}</h2>
-                <p className="text-xl text-black font-medium mb-10 italic line-clamp-3 leading-relaxed">"{featuredPost.content}"</p>
-                <div className="flex items-center gap-6">
-                  <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center font-black text-xl border-2 border-white overflow-hidden">
-                    {featuredPost.author.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-black text-xl">By {featuredPost.author}</p>
-                    <p className="text-sm text-black font-bold uppercase tracking-tighter opacity-50">{new Date(featuredPost.createdAt).toDateString()}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="order-1 lg:order-2 relative aspect-[4/3] scrapbook-border overflow-hidden rotate-3 group-hover:rotate-0 transition-transform duration-700">
-                <img src={featuredPost.imageUrl} alt={featuredPost.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000" />
-              </div>
-            </div>
-          </Link>
-        </section>
-      )}
-
-      <section className="mb-16 flex flex-col gap-10">
-        <div className="flex items-center gap-4">
-            <h3 className="text-3xl font-black uppercase italic tracking-tighter">The Experience Feed</h3>
-            <div className="h-[3px] flex-1 bg-black"></div>
-        </div>
-        <div className="relative">
-          <input 
-            type="text" 
-            placeholder="Search first-hand knowledge..." 
-            className="w-full bg-white border-4 border-black p-6 text-2xl font-bold focus:outline-none focus:translate-x-2 focus:translate-y-2 focus:shadow-none shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] placeholder:text-gray-300 transition-all"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <button onClick={() => setSelectedCategory('All')} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === 'All' ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>All Firsts</button>
-          {CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === cat ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>{cat}</button>
-          ))}
-        </div>
-      </section>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-        {filteredPosts.map(post => (
-          <PostCard 
-            key={post.id} 
-            post={post} 
-            onDelete={handleDeletePost}
-            onTogglePin={handleTogglePin}
-          />
-        ))}
-      </div>
-    </main>
-  );
-
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={
+        <main className="max-w-7xl mx-auto px-4 py-12 sm:px-8">
+          {featuredPost && selectedCategory === 'All' && !searchQuery && (
+            <section className="mb-24">
+              <div className="flex items-center gap-4 mb-6">
+                <span className="text-sm font-black bg-blue-600 text-white px-3 py-1 rounded uppercase tracking-tighter">Weekly Gold</span>
+                <div className="h-[3px] flex-1 bg-black"></div>
+              </div>
+              <Link to={`/post/${featuredPost.id}`} className="group relative block bg-white p-8 sm:p-14 featured-card transition-all hover:-rotate-1">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="order-2 lg:order-1">
+                    <span className="text-blue-600 font-black text-lg uppercase tracking-widest doodle-font mb-4 block underline decoration-blue-200">Featured Legend</span>
+                    <h2 className="text-5xl sm:text-7xl font-black mb-8 group-hover:text-blue-600 transition-colors leading-none tracking-tight">{featuredPost.title}</h2>
+                    <p className="text-xl text-black font-medium mb-10 italic line-clamp-3 leading-relaxed">"{featuredPost.content}"</p>
+                    <div className="flex items-center gap-6">
+                      <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center font-black text-xl border-2 border-white overflow-hidden">
+                        {featuredPost.author.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-black text-xl">By {featuredPost.author}</p>
+                        <p className="text-sm text-black font-bold uppercase tracking-tighter opacity-50">{new Date(featuredPost.createdAt).toDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="order-1 lg:order-2 relative aspect-[4/3] scrapbook-border overflow-hidden rotate-3 group-hover:rotate-0 transition-transform duration-700">
+                    <img src={featuredPost.imageUrl} alt={featuredPost.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000" />
+                  </div>
+                </div>
+              </Link>
+            </section>
+          )}
+
+          <section className="mb-16 flex flex-col gap-10">
+            <div className="flex items-center gap-4">
+                <h3 className="text-3xl font-black uppercase italic tracking-tighter">The Experience Feed</h3>
+                <div className="h-[3px] flex-1 bg-black"></div>
+            </div>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Search first-hand knowledge..." 
+                className="w-full bg-white border-4 border-black p-6 text-2xl font-bold focus:outline-none focus:translate-x-2 focus:translate-y-2 focus:shadow-none shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] placeholder:text-gray-300 transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <button onClick={() => setSelectedCategory('All')} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === 'All' ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>All Firsts</button>
+              {CATEGORIES.map(cat => (
+                <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-8 py-3 rounded-full text-sm font-black uppercase tracking-widest border-4 border-black transition-all ${selectedCategory === cat ? 'bg-black text-white' : 'bg-white hover:bg-yellow-100'}`}>{cat}</button>
+              ))}
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            {filteredPosts.map(post => (
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onDelete={handleDeletePost}
+                onTogglePin={handleTogglePin}
+              />
+            ))}
+          </div>
+          
+          {filteredPosts.length === 0 && (
+            <div className="text-center py-32 bg-white scrapbook-border p-12 -rotate-1">
+              <p className="text-3xl font-black uppercase italic opacity-20 mb-4">Blank Page</p>
+              <p className="font-bold">No experiences found for this search.</p>
+            </div>
+          )}
+        </main>
+      } />
       <Route path="/post/:id" element={<PostDetail posts={posts} onAddComment={handleAddComment} onDelete={handleDeletePost} onTogglePin={handleTogglePin} />} />
       <Route path="/submit" element={<SubmissionForm onAddPost={handleAddPost} defaultUsername={customUsername} />} />
       <Route path="/profile" element={<Profile posts={posts} onDelete={handleDeletePost} onTogglePin={handleTogglePin} />} />
