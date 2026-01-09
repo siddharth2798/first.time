@@ -1,6 +1,7 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
 import { Category, Post, RealityCheck } from '../types.ts';
 import { CATEGORIES } from '../constants.ts';
 import { CONFIG } from '../config.ts';
@@ -10,8 +11,10 @@ interface SubmissionFormProps {
 }
 
 const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
+  const { user, isAuthenticated, loginWithRedirect, isLoading } = useAuth0();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -22,6 +25,12 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
     realityChecks: [{ expectation: '', reality: '' }] as RealityCheck[],
     imageUrl: ''
   });
+
+  useEffect(() => {
+    if (user && !formData.author) {
+      setFormData(prev => ({ ...prev, author: user.nickname || user.name || '' }));
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -79,13 +88,6 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
                 inProgress: "#2563EB",
                 complete: "#10B981",
                 sourceBg: "#F9FAFB"
-            },
-            fonts: {
-                default: null,
-                "'Inter', sans-serif": {
-                    url: "https://fonts.googleapis.com/css?family=Inter",
-                    active: true
-                }
             }
         }
       },
@@ -100,13 +102,19 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!isAuthenticated) {
+      loginWithRedirect();
+      return;
+    }
+
+    setSubmitting(true);
 
     setTimeout(() => {
       const newPost: Post = {
         id: Math.random().toString(36).substr(2, 9),
         title: formData.title,
-        author: formData.author || 'Guest Explorer',
+        author: formData.author || user?.nickname || user?.name || 'Explorer',
+        authorId: user?.sub,
         category: formData.category,
         difficulty: formData.difficulty,
         content: formData.content,
@@ -118,16 +126,29 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
       };
 
       onAddPost(newPost);
-      
-      // Store locally that this user created this post for the Profile view
-      const myCreatedPostIds = JSON.parse(localStorage.getItem('ft_my_post_ids') || '[]');
-      myCreatedPostIds.push(newPost.id);
-      localStorage.setItem('ft_my_post_ids', JSON.stringify(myCreatedPostIds));
-      
-      setLoading(false);
+      setSubmitting(false);
       navigate('/');
     }, 1200);
   };
+
+  if (isLoading) return <div className="py-40 text-center font-black doodle-font text-4xl italic">Initializing Explorer Session...</div>;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-32 text-center">
+         <div className="bg-white p-16 scrapbook-border inline-block rotate-2">
+            <h2 className="text-5xl font-black mb-8 italic uppercase tracking-tighter">Members Only</h2>
+            <p className="text-xl font-bold mb-12 italic">You need to be logged in to permanently archive a 'first'.</p>
+            <button 
+              onClick={() => loginWithRedirect()}
+              className="bg-black text-white px-12 py-6 text-xl font-black uppercase tracking-widest shadow-[10px_10px_0px_0px_#2563eb] hover:bg-blue-600 transition-all"
+            >
+              Identify Myself
+            </button>
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-20">
@@ -159,7 +180,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
                 />
                 </div>
                 <div className="space-y-3">
-                <label className="text-xs font-black uppercase tracking-widest text-black">Your Name</label>
+                <label className="text-xs font-black uppercase tracking-widest text-black">Display Name</label>
                 <input 
                     required
                     type="text" 
@@ -169,6 +190,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
                     placeholder="Explorer Name" 
                     className="w-full p-6 border-4 border-black text-lg focus:outline-none focus:bg-blue-50 font-black placeholder:text-gray-200"
                 />
+                <p className="text-[10px] font-bold opacity-30">ARCHIVED UNDER ID: {user?.sub?.slice(-8)}</p>
                 </div>
             </div>
             
@@ -248,9 +270,6 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
                   <span className="text-sm font-black uppercase tracking-widest">UPLOAD VIA CLOUDINARY</span>
                 </button>
               )}
-              {!formData.imageUrl && (
-                <p className="text-black font-bold doodle-font text-2xl italic opacity-40">Images hosted securely on Cloudinary.</p>
-              )}
             </div>
           </div>
         </section>
@@ -276,46 +295,13 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ onAddPost }) => {
           </div>
         </section>
 
-        <section className="space-y-12">
-          <div className="flex justify-between items-center">
-             <h2 className="text-4xl font-black uppercase italic tracking-tighter">The Reality Gap</h2>
-             <button type="button" onClick={addRealityCheck} className="text-xs font-black bg-black text-white px-6 py-3 uppercase tracking-widest shadow-lg hover:bg-blue-600 transition-colors">+ New Check</button>
-          </div>
-          <div className="space-y-12">
-            {formData.realityChecks.map((check, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-orange-50 p-10 scrapbook-border border-black border-4">
-                <div className="space-y-4">
-                  <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest">Idealized Expectation</label>
-                  <input 
-                    type="text" 
-                    value={check.expectation}
-                    onChange={(e) => handleRealityCheckChange(i, 'expectation', e.target.value)}
-                    placeholder="What the manual said..."
-                    className="w-full p-4 border-b-4 border-orange-200 bg-transparent focus:outline-none focus:border-orange-500 italic font-black text-xl placeholder:text-orange-200"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <label className="text-[12px] font-black text-black uppercase tracking-widest">Cold Hard Reality</label>
-                  <input 
-                    type="text" 
-                    value={check.reality}
-                    onChange={(e) => handleRealityCheckChange(i, 'reality', e.target.value)}
-                    placeholder="What actually happened..."
-                    className="w-full p-4 border-b-4 border-black bg-transparent focus:outline-none focus:border-blue-600 font-black text-xl placeholder:text-gray-300"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <div className="pt-20 border-t-8 border-black">
           <button 
             type="submit" 
-            disabled={loading}
+            disabled={submitting}
             className="w-full py-8 text-3xl font-black text-white bg-black hover:bg-blue-600 transition-all shadow-[12px_12px_0px_0px_#2563eb] active:shadow-none active:translate-x-3 active:translate-y-3 uppercase tracking-tighter italic"
           >
-            {loading ? 'STORING...' : 'PERMANENTLY LOG THIS FIRST'}
+            {submitting ? 'STORING...' : 'PERMANENTLY LOG THIS FIRST'}
           </button>
         </div>
       </form>

@@ -1,15 +1,15 @@
 
 /**
  * Application Configuration
- * Replace the values below with your actual credentials from:
- * - Cloudinary Dashboard: https://cloudinary.com/console/
  */
 export const CONFIG = {
   // Cloudinary Settings
-  // Go to Cloudinary Settings -> Enable Unsigned Uploading -> Create an Upload Preset
   CLOUDINARY_CLOUD_NAME: "dmljhznje",
-  CLOUDINARY_UPLOAD_PRESET: "ml_default", // Change this to your actual unsigned preset name
+  CLOUDINARY_UPLOAD_PRESET: "ml_default",
   
-  // Optional: Add other environment-specific variables here
+  // Auth0 Settings
+  // Replace these with your actual Auth0 application credentials
+  AUTH0_DOMAIN: "dev-8kjdjsblslxs8apq.us.auth0.com",
+  AUTH0_CLIENT_ID: "r88mgFm5Cd9xOTCwejPmYA5FOj7ZAb8e",
   APP_URL: window.location.origin,
 };

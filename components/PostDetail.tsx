@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
 import { Post, Comment } from '../types.ts';
 
 interface PostDetailProps {
@@ -9,15 +10,22 @@ interface PostDetailProps {
 }
 
 const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
+  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const { id } = useParams<{ id: string }>();
   const post = posts.find(p => p.id === id);
   const [newCommentText, setNewCommentText] = useState('');
   const [guestName, setGuestName] = useState('');
 
+  useEffect(() => {
+    if (user && !guestName) {
+      setGuestName(user.nickname || user.name || '');
+    }
+  }, [user]);
+
   if (!post) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
-        <h2 className="text-5xl font-black mb-8">404: EXPERIENCED NOT FOUND</h2>
+        <h2 className="text-5xl font-black mb-8">404: EXPERIENCE NOT FOUND</h2>
         <Link to="/" className="text-blue-600 font-bold underline decoration-4 underline-offset-8">BACK TO ZERO &rarr;</Link>
       </div>
     );
@@ -30,13 +38,13 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
       author: guestName.trim() || 'Anonymous Explorer',
+      authorId: user?.sub,
       text: newCommentText,
       createdAt: new Date().toISOString()
     };
 
     onAddComment(post.id, comment);
     setNewCommentText('');
-    setGuestName('');
   };
 
   return (
@@ -59,7 +67,7 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
             </div>
             <h1 className="text-5xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tighter text-black">{post.title}</h1>
             <div className="flex items-center gap-4 p-4 scrapbook-border inline-flex">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-xl border-2 border-black">
+              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-xl border-2 border-black overflow-hidden">
                 {post.author.charAt(0)}
               </div>
               <div>
@@ -79,9 +87,6 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
           </div>
 
           <div className="prose prose-xl max-w-none text-black mb-20 leading-relaxed bg-white p-10 scrapbook-border relative">
-             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none select-none">
-                <svg width="100" height="100" viewBox="0 0 100 100"><path d="M10 10 q 40 10 80 0" stroke="black" fill="none" strokeWidth="2"/></svg>
-             </div>
             {post.content.split('\n').map((paragraph, i) => (
               <p key={i} className="mb-8 font-medium">{paragraph}</p>
             ))}
@@ -127,31 +132,36 @@ const PostDetail: React.FC<PostDetailProps> = ({ posts, onAddComment }) => {
               )}
             </div>
 
-            <form onSubmit={handleCommentSubmit} className="bg-gray-100 p-8 scrapbook-border space-y-4">
-              <h4 className="font-black uppercase text-xs tracking-widest mb-4">Leave your mark</h4>
-              <input 
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Your name (optional)"
-                className="w-full p-4 border-2 border-black focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white"
-              />
-              <textarea 
-                value={newCommentText}
-                onChange={(e) => setNewCommentText(e.target.value)}
-                placeholder="Share some wisdom or ask a question..."
-                className="w-full p-4 border-2 border-black mb-4 focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white min-h-[120px]"
-              />
-              <div className="flex justify-end items-center">
+            {isAuthenticated ? (
+              <form onSubmit={handleCommentSubmit} className="bg-gray-100 p-8 scrapbook-border space-y-4">
+                <h4 className="font-black uppercase text-xs tracking-widest mb-4">Post as {user?.nickname}</h4>
+                <textarea 
+                  value={newCommentText}
+                  onChange={(e) => setNewCommentText(e.target.value)}
+                  placeholder="Share some wisdom or ask a question..."
+                  className="w-full p-4 border-2 border-black mb-4 focus:outline-none focus:ring-4 focus:ring-blue-100 bg-white min-h-[120px]"
+                />
+                <div className="flex justify-end items-center">
+                  <button 
+                    type="submit"
+                    disabled={!newCommentText.trim()}
+                    className="bg-black text-white px-8 py-3 font-black uppercase text-xs tracking-widest hover:bg-blue-600 disabled:bg-gray-300 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    Send Advice
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="bg-white p-12 scrapbook-border text-center border-dashed border-4">
+                <p className="font-black text-xl mb-6 italic">Want to give some advice?</p>
                 <button 
-                  type="submit"
-                  disabled={!newCommentText.trim()}
-                  className="bg-black text-white px-8 py-3 font-black uppercase text-xs tracking-widest hover:bg-blue-600 disabled:bg-gray-300 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  onClick={() => loginWithRedirect()}
+                  className="bg-black text-white px-8 py-3 font-black uppercase text-xs tracking-widest shadow-[4px_4px_0px_0px_#2563eb]"
                 >
-                  Send Advice
+                  Login to Comment
                 </button>
               </div>
-            </form>
+            )}
           </section>
         </div>
 
