@@ -26,7 +26,7 @@ export const MOCK_POSTS: Post[] = [
       { expectation: 'Quick 1-week turnaround.', reality: 'Took 23 agonizing days.' },
       { expectation: 'Clear instructions on the website.', reality: 'Vague requirements that needed Reddit threads to clarify.' }
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&q=80&w=1200',
+    imageUrl: 'https://images.unsplash.com/photo-1544333346-64e4fe1f99be?auto=format&fit=crop&q=80&w=800',
     createdAt: '2024-03-10T14:30:00Z',
     comments: [
       { id: 'c1', author: 'TravelBug', text: 'This is so helpful! I am applying next month.', createdAt: '2024-03-11T10:00:00Z' }
