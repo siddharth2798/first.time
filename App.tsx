@@ -5,6 +5,7 @@ import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { Post, Category, Comment } from './types.ts';
 import { CATEGORIES, MOCK_POSTS } from './constants.ts';
 import { supabase } from './supabase.ts';
+import { CONFIG } from './config.ts';
 import PostCard from './components/PostCard.tsx';
 import PostDetail from './components/PostDetail.tsx';
 import SubmissionForm from './components/SubmissionForm.tsx';
@@ -16,6 +17,8 @@ const Header: React.FC<{ isSaving?: boolean }> = ({ isSaving }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const isAuth0Configured = !!(CONFIG.AUTH0_DOMAIN && CONFIG.AUTH0_CLIENT_ID);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -25,6 +28,14 @@ const Header: React.FC<{ isSaving?: boolean }> = ({ isSaving }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogin = () => {
+    if (!isAuth0Configured) {
+      alert("Auth0 is not configured. Please update config.ts with your Domain and Client ID.");
+      return;
+    }
+    loginWithRedirect();
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-[#fcfbf7]/95 backdrop-blur-md border-b-4 border-black px-4 py-4 sm:px-8">
@@ -84,7 +95,12 @@ const Header: React.FC<{ isSaving?: boolean }> = ({ isSaving }) => {
                   )}
                 </div>
               ) : (
-                <button onClick={() => loginWithRedirect()} className="text-xs font-black uppercase tracking-widest hover:text-blue-600 transition-colors">Login</button>
+                <button 
+                  onClick={handleLogin} 
+                  className={`text-xs font-black uppercase tracking-widest transition-colors ${!isAuth0Configured ? 'text-red-400 hover:text-red-600' : 'hover:text-blue-600'}`}
+                >
+                  {isAuth0Configured ? 'Login' : 'Config Error'}
+                </button>
               )
             )}
             
@@ -109,39 +125,31 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
   const [searchQuery, setSearchQuery] = useState('');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Helper to check if Supabase is actually configured via environment variables
   const isSupabaseConfigured = () => {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    return !!(url && key && !url.includes('placeholder-url') && key !== 'placeholder-key');
+    return !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && !CONFIG.SUPABASE_URL.includes('placeholder-url'));
   };
 
-  // Fetch initial data from Supabase
   useEffect(() => {
     const loadData = async () => {
       if (!isSupabaseConfigured()) {
-        console.log("Supabase environment variables not found. Running in Demo Mode with mock data.");
         setPosts(MOCK_POSTS);
         setIsInitialLoading(false);
         return;
       }
 
       try {
-        // Fetch posts
         const { data: postsData, error: postsError } = await supabase
           .from('posts')
           .select('*, comments(*)');
         
         if (postsError) throw postsError;
         
-        // Fallback to mock data if empty (for initial demo feel)
         if (!postsData || postsData.length === 0) {
           setPosts(MOCK_POSTS);
         } else {
           setPosts(postsData);
         }
 
-        // Fetch user profile if authenticated
         if (isAuthenticated && user?.sub) {
           const { data: profileData } = await supabase
             .from('profiles')
@@ -155,7 +163,7 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
         }
       } catch (err: any) {
         console.error("Failed to fetch initial data:", err?.message || err);
-        setPosts(MOCK_POSTS); // Graceful fallback
+        setPosts(MOCK_POSTS);
       } finally {
         setIsInitialLoading(false);
       }
@@ -170,33 +178,19 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
     
     try {
       if (isSupabaseConfigured()) {
-        const { error } = await supabase
-          .from('profiles')
-          .upsert({ id: user.sub, username: newName });
-
-        if (error) throw error;
+        await supabase.from('profiles').upsert({ id: user.sub, username: newName });
       }
-
       setCustomUsername(newName);
-      
-      // Cascade update local posts for immediate UI feedback
       setPosts(prev => prev.map(post => {
         let updatedPost = { ...post };
-        if (post.authorId === user.sub) {
-          updatedPost.author = newName;
-        }
+        if (post.authorId === user.sub) updatedPost.author = newName;
         if (post.comments) {
-          updatedPost.comments = post.comments.map(comment => {
-            if (comment.authorId === user.sub) {
-              return { ...comment, author: newName };
-            }
-            return comment;
-          });
+          updatedPost.comments = post.comments.map(c => c.authorId === user.sub ? { ...c, author: newName } : c);
         }
         return updatedPost;
       }));
-    } catch (err: any) {
-      console.error("Failed to update username:", err?.message || err);
+    } catch (err) {
+      console.error(err);
     } finally {
       setTimeout(() => setIsSaving(false), 500);
     }
@@ -206,15 +200,11 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
     setIsSaving(true);
     try {
       if (isSupabaseConfigured()) {
-        const { error } = await supabase
-          .from('posts')
-          .insert([newPost]);
-        
-        if (error) throw error;
+        await supabase.from('posts').insert([newPost]);
       }
       setPosts(prev => [newPost, ...prev]);
-    } catch (err: any) {
-      console.error("Failed to add post:", err?.message || err);
+    } catch (err) {
+      console.error(err);
     } finally {
       setTimeout(() => setIsSaving(false), 500);
     }
@@ -224,40 +214,26 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
     setIsSaving(true);
     try {
       if (isSupabaseConfigured()) {
-        const { error } = await supabase
-          .from('comments')
-          .insert([{ ...comment, post_id: postId }]);
-        
-        if (error) throw error;
+        await supabase.from('comments').insert([{ ...comment, post_id: postId }]);
       }
-
-      setPosts(prev => prev.map(p => 
-        p.id === postId 
-          ? { ...p, comments: [...(p.comments || []), comment] } 
-          : p
-      ));
-    } catch (err: any) {
-      console.error("Failed to add comment:", err?.message || err);
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...(p.comments || []), comment] } : p));
+    } catch (err) {
+      console.error(err);
     } finally {
       setTimeout(() => setIsSaving(false), 500);
     }
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (window.confirm("Are you sure you want to delete this experience? This cannot be undone.")) {
+    if (window.confirm("Delete this experience?")) {
       setIsSaving(true);
       try {
         if (isSupabaseConfigured()) {
-          const { error } = await supabase
-            .from('posts')
-            .delete()
-            .eq('id', postId);
-          
-          if (error) throw error;
+          await supabase.from('posts').delete().eq('id', postId);
         }
         setPosts(prev => prev.filter(p => p.id !== postId));
-      } catch (err: any) {
-        console.error("Failed to delete post:", err?.message || err);
+      } catch (err) {
+        console.error(err);
       } finally {
         setTimeout(() => setIsSaving(false), 500);
       }
@@ -269,23 +245,13 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
     try {
       const targetPost = posts.find(p => p.id === postId);
       const newPinnedStatus = !targetPost?.isFeatured;
-
       if (isSupabaseConfigured()) {
-        // Update DB
-        // 1. Unpin all others
         await supabase.from('posts').update({ isFeatured: false }).neq('id', postId);
-        // 2. Toggle target
         await supabase.from('posts').update({ isFeatured: newPinnedStatus }).eq('id', postId);
       }
-
-      setPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          return { ...p, isFeatured: newPinnedStatus };
-        }
-        return { ...p, isFeatured: false };
-      }));
-    } catch (err: any) {
-      console.error("Failed to toggle pin:", err?.message || err);
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, isFeatured: newPinnedStatus } : { ...p, isFeatured: false }));
+    } catch (err) {
+      console.error(err);
     } finally {
       setTimeout(() => setIsSaving(false), 500);
     }
@@ -403,20 +369,18 @@ const MainContent: React.FC<{ setIsSaving: (val: boolean) => void }> = ({ setIsS
 const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
-  const isSupabaseConfigured = () => {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    return !!(url && key && !url.includes('placeholder-url') && key !== 'placeholder-key');
-  };
+  // Auth0 credentials from sanitized CONFIG
+  const auth0Domain = (CONFIG.AUTH0_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const auth0ClientId = CONFIG.AUTH0_CLIENT_ID || '';
 
-  // Auth0 credentials from environment
-  const auth0Domain = process.env.AUTH0_DOMAIN || '';
-  const auth0ClientId = process.env.AUTH0_CLIENT_ID || '';
+  const isSupabaseConfigured = () => {
+    return !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && !CONFIG.SUPABASE_URL.includes('placeholder-url'));
+  };
 
   return (
     <Auth0Provider
-      domain={auth0Domain}
-      clientId={auth0ClientId}
+      domain={auth0Domain || 'placeholder.auth0.com'}
+      clientId={auth0ClientId || 'placeholder'}
       authorizationParams={{
         redirect_uri: window.location.origin
       }}
@@ -429,8 +393,15 @@ const App: React.FC = () => {
             <div className="max-w-4xl mx-auto">
                <h2 className="text-7xl font-black mb-6 italic tracking-tighter">first.time</h2>
                <p className="text-2xl font-bold mb-12 italic text-black">"Everyone starts at zero."</p>
-               <div className="inline-block bg-black text-white px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em]">
-                 Storage: {isSupabaseConfigured() ? 'Persistent Cloud (Supabase)' : 'Demo Mode (Mock Data)'}
+               <div className="flex flex-col items-center gap-2">
+                 <div className="inline-block bg-black text-white px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em]">
+                   Storage: {isSupabaseConfigured() ? 'Persistent Cloud (Supabase)' : 'Demo Mode (Mock Data)'}
+                 </div>
+                 {!auth0Domain && (
+                   <div className="text-[10px] font-black text-red-600 uppercase tracking-widest bg-red-50 border-2 border-red-200 px-3 py-1 rounded">
+                     Auth0 Configuration Missing in config.ts
+                   </div>
+                 )}
                </div>
             </div>
           </footer>
